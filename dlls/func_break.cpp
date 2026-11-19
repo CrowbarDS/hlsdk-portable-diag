@@ -24,6 +24,7 @@
 #include "cbase.h"
 #include "saverestore.h"
 #include "func_break.h"
+#include "diag.h"
 #include "decals.h"
 #include "explode.h"
 #include "game.h"
@@ -917,6 +918,7 @@ void CPushable::Move( CBaseEntity *pOther, int push )
 {
 	entvars_t* pevToucher = pOther->pev;
 	int playerTouch = 0;
+	DiagPushScope diag( pev, pevToucher, push );
 
 	// Is entity standing on this pushable ?
 	if( FBitSet( pevToucher->flags,FL_ONGROUND ) && pevToucher->groundentity && VARS( pevToucher->groundentity ) == pev )
@@ -925,6 +927,7 @@ void CPushable::Move( CBaseEntity *pOther, int push )
 		if( pev->waterlevel > 0 )
 			pev->velocity.z += pevToucher->velocity.z * 0.1f;
 
+		diag.result = DIAG_PUSH_RIDE;
 		return;
 	}
 
@@ -934,21 +937,24 @@ void CPushable::Move( CBaseEntity *pOther, int push )
 		{
 			// Don't push unless the player is pushing forward and NOT use (pull)
 			if( push && !( pevToucher->button & ( IN_FORWARD | IN_USE )))
-				return;
+				{ diag.result = DIAG_PUSH_BUTTONS; return; }
 		}
 		// g-cont. fix pushable acceleration bug (now implemented as cvar)
 		else if( pushablemode.value != 0 )
 		{
 			// Allow player push when moving right, left and back too
 			if( push && !( pevToucher->button & ( IN_FORWARD | IN_MOVERIGHT | IN_MOVELEFT | IN_BACK )))
-				return;
+				{ diag.result = DIAG_PUSH_BUTTONS; return; }
 			// Require player walking back when applying '+use' on pushable
 			if( !push && !( pevToucher->button & ( IN_BACK )))
-				return;
+				{ diag.result = DIAG_PUSH_BUTTONS; return; }
 		}
 		// Don't push when +use pressed
 		else if( push && ( pevToucher->button & ( IN_USE )))
+		{
+			diag.result = DIAG_PUSH_BUTTONS;
 			return;
+		}
 		playerTouch = 1;
 	}
 
@@ -959,7 +965,10 @@ void CPushable::Move( CBaseEntity *pOther, int push )
 		if( !( pevToucher->flags & FL_ONGROUND ) )	// Don't push away from jumping/falling players unless in water
 		{
 			if( pev->waterlevel < 1 )
+			{
+				diag.result = DIAG_PUSH_AIR;
 				return;
+			}
 			else 
 				factor = 0.1f;
 		}

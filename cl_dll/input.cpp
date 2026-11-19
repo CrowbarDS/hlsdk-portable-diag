@@ -788,6 +788,9 @@ if active == 1 then we are 1) not playing back demos ( where our commands are ig
 2 ) we have finished signing on to server
 ================
 */
+void Diag_ClientInit( void );
+void Diag_ClientMove( struct usercmd_s *cmd, int active );
+
 void DLLEXPORT CL_CreateMove( float frametime, struct usercmd_s *cmd, int active )
 {
 	float spd;
@@ -892,6 +895,8 @@ void DLLEXPORT CL_CreateMove( float frametime, struct usercmd_s *cmd, int active
 		VectorCopy( oldangles, cmd->viewangles );
 	}
 
+	// The diagnostic script, when one is playing, has the last word.
+	Diag_ClientMove( cmd, active );
 }
 
 /*
@@ -1056,6 +1061,7 @@ InitInput
 */
 void InitInput( void )
 {
+	Diag_ClientInit();
 	gEngfuncs.pfnAddCommand( "+moveup", IN_UpDown );
 	gEngfuncs.pfnAddCommand( "-moveup", IN_UpUp );
 	gEngfuncs.pfnAddCommand( "+movedown", IN_DownDown );

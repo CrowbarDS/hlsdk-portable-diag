@@ -39,6 +39,7 @@
 #include "usercmd.h"
 #include "netadr.h"
 #include "pm_shared.h"
+#include "diag.h"
 
 extern DLL_GLOBAL ULONG		g_ulModelIndexPlayer;
 extern DLL_GLOBAL BOOL		g_fGameOver;
@@ -785,7 +786,10 @@ void PlayerPostThink( edict_t *pEntity )
 	CBasePlayer *pPlayer = (CBasePlayer *)GET_PRIVATE( pEntity );
 
 	if( pPlayer )
+	{
 		pPlayer->PostThink();
+		Diag_PlayerPostThink( pPlayer );
+	}
 }
 
 void ParmsNewLevel( void )
@@ -816,6 +820,7 @@ void StartFrame( void )
 
 	gpGlobals->teamplay = teamplay.value;
 	g_ulFrameCount++;
+	Diag_StartFrame();
 }
 
 void ClientPrecache( void )
@@ -1826,6 +1831,7 @@ void CmdStart( const edict_t *player, const struct usercmd_s *cmd, unsigned int 
 	}
 
 	pl->random_seed = random_seed;
+	Diag_CmdStart( pl, cmd, random_seed );
 }
 
 /*

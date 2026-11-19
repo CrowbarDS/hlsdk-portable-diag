@@ -16,6 +16,7 @@
 #include "eiface.h"
 #include "util.h"
 #include "game.h"
+#include "diag.h"
 #include "vcs_info.h"
 
 static cvar_t build_commit = { "sv_game_build_commit", g_VCSInfo_Commit };
@@ -890,6 +891,7 @@ void GameDLLInit( void )
 // END REGISTER CVARS FOR SKILL LEVEL STUFF
 
 	CVAR_REGISTER( &sv_pushable_fixed_tick_fudge );
+	Diag_Init();
 
 	SERVER_COMMAND( "exec skill.cfg\n" );
 }
