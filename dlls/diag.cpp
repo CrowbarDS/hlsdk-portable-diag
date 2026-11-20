@@ -76,6 +76,9 @@ static void Open( void )
 	fprintf( s_log, "#cols shot frame seq t n seed sx sy sz ax ay az x y cx cy ex ey ez frac hit\n" );
 	// A blast (RadiusDamage), at x y z as given.
 	fprintf( s_log, "#cols boom frame seq t x y z damage radius type by\n" );
+	// A turning brush (func_rotating), before the frame's physics: its
+	// angles and how fast each turns (degrees, degrees a second).
+	fprintf( s_log, "#cols rot frame seq t id ax ay az wx wy wz\n" );
 	// The player hurt: amount and type asked, by what from where, the
 	// velocity before and after (the push), health and armour before and after.
 	fprintf( s_log, "#cols dmg frame seq t amount type by fx fy fz vx0 vy0 vz0 vx vy vz hp0 hp ap0 ap\n" );
@@ -196,6 +199,14 @@ void Diag_StartFrame( void )
 			( pev->flags & FL_ONGROUND ) ? 1 : 0,
 			( pev->flags & FL_ONGROUND ) ? ModelName( pev->groundentity ) : "-",
 			pev->waterlevel );
+	}
+	ent = NULL;
+	while(( ent = UTIL_FindEntityByClassname( ent, "func_rotating" )) != NULL )
+	{
+		entvars_t *pev = ent->pev;
+		fprintf( s_log, "rot,%d,%d,%.4f,%s,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+			s_frame, s_seq, gpGlobals->time, STRING( pev->model ),
+			pev->angles.x, pev->angles.y, pev->angles.z, pev->avelocity.x, pev->avelocity.y, pev->avelocity.z );
 	}
 	static const char *thrown[] = { "grenade", "crossbow_bolt", "rpg_rocket", "hornet", "monster_satchel",
 		"monster_snark", "monster_tripmine" };
