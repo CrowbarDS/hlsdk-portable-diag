@@ -12,6 +12,8 @@
 
 #include <stdio.h>
 
+extern DLL_GLOBAL int g_iSkillLevel;
+
 static cvar_t diag_log = { "diag_log", "" };
 
 static FILE *s_log;
@@ -59,6 +61,8 @@ static void Open( void )
 	}
 	fprintf( s_log, "#diag pc 1\n" );
 	fprintf( s_log, "#map %s\n", STRING( gpGlobals->mapname ));
+	// How hard the game is (1 easy .. 3 hard): the replay plays at the same.
+	fprintf( s_log, "#skill %d\n", g_iSkillLevel );
 	// frame: the script's frame (the client's); seq: the command, from 1 (a
 	// slow frame is run as more than one command); t: the server's time.
 	fprintf( s_log, "#cols cmd frame seq t sframe msec fwd side up pitch yaw buttons impulse seed\n" );
