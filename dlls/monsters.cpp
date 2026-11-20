@@ -34,6 +34,7 @@
 #include "soundent.h"
 #include "gamerules.h"
 #include "game.h"
+#include "diag.h"
 
 #define MONSTER_CUT_CORNER_DIST		8 // 8 means the monster's bounding box is contained without the box of the node in WC
 
@@ -521,6 +522,7 @@ CSound *CBaseMonster::PBestScent( void )
 //=========================================================
 void CBaseMonster::MonsterThink( void )
 {
+	DiagMonsterScope diagScope( this );
 	pev->nextthink = gpGlobals->time + 0.1f;// keep monster thinking.
 
 	RunAI();
@@ -566,6 +568,7 @@ void CBaseMonster::MonsterThink( void )
 			ALERT( at_error, "Schedule stalled!!\n" );
 	}
 #endif
+	Diag_MonsterThink( this );
 }
 
 //=========================================================
@@ -1520,6 +1523,7 @@ int CBaseMonster::RouteClassify( int iMoveFlag )
 //=========================================================
 BOOL CBaseMonster::BuildRoute( const Vector &vecGoal, int iMoveFlag, CBaseEntity *pTarget )
 {
+	DiagRouteScope diagRoute( this, "route" );
 	float flDist;
 	Vector vecApex;
 	int iLocalMove;
@@ -2128,7 +2132,11 @@ void CBaseMonster::StartMonster( void )
 	// Delay drop to floor to make sure each door in the level has had its chance to spawn
 	// Spread think times so that they don't all happen at the same time (Carmack)
 	SetThink( &CBaseMonster::CallMonsterThink );
-	pev->nextthink += RANDOM_FLOAT( 0.1f, 0.4f ); // spread think times.
+	{
+		DiagMonsterScope diagScope( this );
+		pev->nextthink += RANDOM_FLOAT( 0.1f, 0.4f ); // spread think times.
+	}
+	Diag_MonsterStart( this );
 
 	// Vit_amiN: fixed -- now it doesn't touch any scripted_sequence target
 	if( !FStringNull( pev->targetname ) && !m_pCine )// wait until triggered
@@ -2211,6 +2219,7 @@ int CBaseMonster::IRelationship( CBaseEntity *pTarget )
 
 BOOL CBaseMonster::FindCover( Vector vecThreat, Vector vecViewOffset, float flMinDist, float flMaxDist )
 {
+	DiagRouteScope diagRoute( this, "cover" );
 	int i;
 	int iMyHullIndex;
 	int iMyNode;
@@ -2316,6 +2325,7 @@ BOOL CBaseMonster::FindCover( Vector vecThreat, Vector vecViewOffset, float flMi
 //=========================================================
 BOOL CBaseMonster::BuildNearestRoute( Vector vecThreat, Vector vecViewOffset, float flMinDist, float flMaxDist )
 {
+	DiagRouteScope diagRoute( this, "near" );
 	int i;
 	int iMyHullIndex;
 	int iMyNode;

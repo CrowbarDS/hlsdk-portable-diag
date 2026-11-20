@@ -26,6 +26,7 @@
 #include "nodes.h"
 #include "defaultai.h"
 #include "soundent.h"
+#include "diag.h"
 
 extern CGraph WorldGraph;
 
@@ -78,6 +79,7 @@ BOOL CBaseMonster::FScheduleDone( void )
 void CBaseMonster::ChangeSchedule( Schedule_t *pNewSchedule )
 {
 	ASSERT( pNewSchedule != NULL );
+	Diag_AiEvent( this, "sched", pNewSchedule->pName, m_afConditions, 0 );
 
 	m_pSchedule = pNewSchedule;
 	m_iScheduleIndex = 0;
@@ -252,6 +254,9 @@ void CBaseMonster::MaintainSchedule( void )
 
 				// schedule was invalid because the current task failed to start or complete
 				ALERT( at_aiconsole, "Schedule Failed at %d!\n", m_iScheduleIndex );
+				Diag_AiEvent( this, "fail", m_pSchedule ? m_pSchedule->pName : NULL,
+					m_pSchedule && m_iScheduleIndex < m_pSchedule->cTasks ? m_pSchedule->pTasklist[m_iScheduleIndex].iTask : -1,
+					m_iScheduleIndex );
 				ChangeSchedule( pNewSchedule );
 			}
 			else
@@ -270,6 +275,7 @@ void CBaseMonster::MaintainSchedule( void )
 			Task_t *pTask = GetTask();
 			ASSERT( pTask != NULL );
 			TaskBegin();
+			Diag_AiEvent( this, "task", NULL, pTask->iTask, m_iScheduleIndex );
 			StartTask( pTask );
 		}
 

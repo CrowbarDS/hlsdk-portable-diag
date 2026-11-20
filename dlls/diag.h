@@ -14,6 +14,7 @@
 
 struct usercmd_s;
 class CBasePlayer;
+class CBaseMonster;
 
 void Diag_Init( void );
 bool Diag_On( void );
@@ -62,6 +63,33 @@ struct DiagPushScope
 	DiagPushResult result;
 	DiagPushScope( entvars_t *b, entvars_t *t, int p );
 	~DiagPushScope();
+};
+
+// The monsters (the AI's comparison with the port's).
+// Their start (StartMonster): where, and when their first think is, kept from
+// the map's load on and written when the log opens ("mstart").
+void Diag_MonsterStart( CBaseMonster *monster );
+// Each think's end (MonsterThink): where it is and what it is doing ("mon").
+void Diag_MonsterThink( CBaseMonster *monster );
+// Something its AI did ("aiev"): what (sched, task, fail, anim), a name
+// (the schedule's) and two numbers (a task's id, a condition mask, an event).
+void Diag_AiEvent( CBaseMonster *monster, const char *what, const char *name, int a, int b );
+// While a monster thinks or starts, the engine's random draws are its own
+// ("rnd"): which monster, low, high and what came.
+struct DiagMonsterScope
+{
+	CBaseMonster *previous;
+	DiagMonsterScope( CBaseMonster *monster );
+	~DiagMonsterScope();
+};
+// A way worked out (BuildRoute, FindCover, BuildNearestRoute): what the
+// route's first step is once it is done ("aiev" route/cover/near).
+struct DiagRouteScope
+{
+	CBaseMonster *monster;
+	const char *what;
+	DiagRouteScope( CBaseMonster *m, const char *w ) : monster( m ), what( w ) {}
+	~DiagRouteScope();
 };
 
 #endif

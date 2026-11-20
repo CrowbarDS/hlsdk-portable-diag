@@ -25,6 +25,7 @@
 #include "cbase.h"
 #include "animation.h"
 #include "saverestore.h"
+#include "diag.h"
 
 TYPEDESCRIPTION	CBaseAnimating::m_SaveData[] =
 {
@@ -157,6 +158,8 @@ void CBaseAnimating::DispatchAnimEvents( float flInterval )
 
 	while( ( index = GetAnimationEvent( pmodel, pev, &event, flStart, flEnd, index ) ) != 0 )
 	{
+		if( CBaseMonster *monster = MyMonsterPointer())
+			Diag_AiEvent( monster, "anim", NULL, event.event, 0 );
 		HandleAnimEvent( &event );
 	}
 }

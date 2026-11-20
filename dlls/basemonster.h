@@ -23,6 +23,8 @@ class CBaseMonster : public CBaseToggle
 {
 private:
 	int m_afConditions;
+	// (The diagnostic log reads it: diag.cpp.)
+	friend void Diag_MonsterThink( CBaseMonster *monster );
 
 public:
 	typedef enum

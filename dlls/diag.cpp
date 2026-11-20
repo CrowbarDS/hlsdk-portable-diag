@@ -8,6 +8,7 @@
 #include "pm_shared.h"
 #include "weapons.h"
 #include "hornet.h"
+#include "monsters.h"
 
 #include <stdio.h>
 
@@ -17,6 +18,21 @@ static FILE *s_log;
 static int s_frame;           // the script's frame now running (1-based), 0 when none
 static unsigned int s_serverFrame;
 static int s_seq;              // the commands run since the script began
+
+// The monsters' starts, from the map's load on (written when the log opens).
+struct DiagStart
+{
+	int id;
+	char cls[32];
+	Vector at;
+	float start, first; // when it started; its first think
+};
+static DiagStart s_starts[256];
+static int s_startCount;
+// The monster thinking now (its random draws are its own), or none.
+static CBaseMonster *s_monster;
+static int ( *s_randomLong )( int, int );
+static float ( *s_randomFloat )( float, float );
 
 static const char *ModelName( edict_t *ent )
 {
@@ -82,6 +98,27 @@ static void Open( void )
 	// The player hurt: amount and type asked, by what from where, the
 	// velocity before and after (the push), health and armour before and after.
 	fprintf( s_log, "#cols dmg frame seq t amount type by fx fy fz vx0 vy0 vz0 vx vy vz hp0 hp ap0 ap\n" );
+	// A monster's start (StartMonster): its entity, class, where it stood
+	// then, when that was and when its first think was set for (the spread).
+	fprintf( s_log, "#cols mstart frame seq t id cls sx sy sz start first\n" );
+	// A monster at the end of its think: where, which way, its state and the
+	// one it should be in, schedule (name), task (index, id), conditions
+	// (before the schedule's own changes clear them: as RunAI left them),
+	// enemy (entity, - none), activity, sequence, health, the next think.
+	fprintf( s_log, "#cols mon frame seq t id ox oy oz yaw state ideal sched ti tid cond enemy act seq hp next\n" );
+	// Something its AI did: sched (name; a the conditions that ended the
+	// last), task (a its id), fail (a the task's id), anim (a the event),
+	// route/cover/near (a the route's first step's type, b the goal; name
+	// "x y z" that step).
+	fprintf( s_log, "#cols aiev frame seq t id what name a b\n" );
+	// A random draw of the engine's while a monster thought: L whole, F float.
+	fprintf( s_log, "#cols rnd frame seq t id kind lo hi value\n" );
+	for( int i = 0; i < s_startCount; i++ )
+	{
+		const DiagStart &st = s_starts[i];
+		fprintf( s_log, "mstart,0,0,%.4f,%d,%s,%.3f,%.3f,%.3f,%.4f,%.4f\n", gpGlobals->time, st.id, st.cls,
+			st.at.x, st.at.y, st.at.z, st.start, st.first );
+	}
 	s_seq = 0;
 	g_engfuncs.pfnServerPrint( "DIAG: log open\n" );
 }
@@ -96,9 +133,38 @@ static void Close( void )
 	g_engfuncs.pfnServerPrint( "DIAG: log closed\n" );
 }
 
+static int MonsterId( CBaseMonster *m )
+{
+	return m ? ENTINDEX( m->edict()) : -1;
+}
+
+static int DiagRandomLong( int low, int high )
+{
+	int value = s_randomLong( low, high );
+	if( s_monster && Diag_On())
+		fprintf( s_log, "rnd,%d,%d,%.4f,%d,L,%d,%d,%d\n", s_frame, s_seq, gpGlobals->time, MonsterId( s_monster ),
+			low, high, value );
+	return value;
+}
+
+static float DiagRandomFloat( float low, float high )
+{
+	float value = s_randomFloat( low, high );
+	if( s_monster && Diag_On())
+		fprintf( s_log, "rnd,%d,%d,%.4f,%d,F,%.6f,%.6f,%.6f\n", s_frame, s_seq, gpGlobals->time,
+			MonsterId( s_monster ), low, high, value );
+	return value;
+}
+
 void Diag_Init( void )
 {
 	CVAR_REGISTER( &diag_log );
+	// (The game library's own copy of the engine's table: what RANDOM_LONG
+	// and RANDOM_FLOAT call, enginecallback.h.)
+	s_randomLong = g_engfuncs.pfnRandomLong;
+	s_randomFloat = g_engfuncs.pfnRandomFloat;
+	g_engfuncs.pfnRandomLong = DiagRandomLong;
+	g_engfuncs.pfnRandomFloat = DiagRandomFloat;
 	g_engfuncs.pfnServerPrint( "DIAG: diagnostic server library\n" );
 }
 
@@ -296,4 +362,70 @@ DiagPushScope::~DiagPushScope()
 		s_frame, s_seq, gpGlobals->time, STRING( box->model ), who, push, names[result],
 		toucher->velocity.x, toucher->velocity.y, before.x, before.y,
 		box->velocity.x, box->velocity.y );
+}
+
+void Diag_MonsterStart( CBaseMonster *monster )
+{
+	const int id = MonsterId( monster );
+	int i = 0;
+	while( i < s_startCount && s_starts[i].id != id )
+		i++;
+	if( i == s_startCount )
+	{
+		if( s_startCount == (int)( sizeof( s_starts ) / sizeof( s_starts[0] )))
+			return;
+		s_startCount++;
+	}
+	DiagStart &st = s_starts[i];
+	st.id = id;
+	snprintf( st.cls, sizeof( st.cls ), "%s", STRING( monster->pev->classname ));
+	st.at = monster->pev->origin;
+	st.start = gpGlobals->time;
+	st.first = monster->pev->nextthink;
+	if( Diag_On())
+		fprintf( s_log, "mstart,%d,%d,%.4f,%d,%s,%.3f,%.3f,%.3f,%.4f,%.4f\n", s_frame, s_seq, gpGlobals->time, id,
+			st.cls, st.at.x, st.at.y, st.at.z, st.start, st.first );
+}
+
+void Diag_MonsterThink( CBaseMonster *monster )
+{
+	if( !Diag_On())
+		return;
+	entvars_t *pev = monster->pev;
+	Schedule_t *sched = monster->m_pSchedule;
+	Task_t *task = sched && monster->m_iScheduleIndex < sched->cTasks ? &sched->pTasklist[monster->m_iScheduleIndex] : NULL;
+	CBaseEntity *enemy = monster->m_hEnemy;
+	fprintf( s_log, "mon,%d,%d,%.4f,%d,%.3f,%.3f,%.3f,%.3f,%d,%d,%s,%d,%d,%08x,%d,%d,%d,%.2f,%.4f\n",
+		s_frame, s_seq, gpGlobals->time, MonsterId( monster ), pev->origin.x, pev->origin.y, pev->origin.z,
+		pev->angles.y, monster->m_MonsterState, monster->m_IdealMonsterState, sched ? sched->pName : "-",
+		monster->m_iScheduleIndex, task ? task->iTask : -1, monster->m_afConditions,
+		enemy ? ENTINDEX( enemy->edict()) : -1, monster->m_Activity, pev->sequence, pev->health, pev->nextthink );
+}
+
+void Diag_AiEvent( CBaseMonster *monster, const char *what, const char *name, int a, int b )
+{
+	if( !Diag_On())
+		return;
+	fprintf( s_log, "aiev,%d,%d,%.4f,%d,%s,%s,%d,%d\n", s_frame, s_seq, gpGlobals->time, MonsterId( monster ),
+		what, name && name[0] ? name : "-", a, b );
+}
+
+DiagMonsterScope::DiagMonsterScope( CBaseMonster *monster ) : previous( s_monster )
+{
+	s_monster = monster;
+}
+
+DiagMonsterScope::~DiagMonsterScope()
+{
+	s_monster = previous;
+}
+
+DiagRouteScope::~DiagRouteScope()
+{
+	if( !Diag_On())
+		return;
+	const WayPoint_t &step = monster->m_Route[monster->m_iRouteIndex];
+	char at[64];
+	snprintf( at, sizeof( at ), "%.1f %.1f %.1f", step.vecLocation.x, step.vecLocation.y, step.vecLocation.z );
+	Diag_AiEvent( monster, what, at, step.iType, monster->m_movementGoal );
 }
