@@ -480,6 +480,16 @@ void ClientCommand( edict_t *pEntity )
 
 	entvars_t *pev = &pEntity->v;
 
+	// The diagnostic log's scenarios fire a map's target the way its own
+	// trigger would (a scenario's "cmd diag_fire <name>"), as the port's
+	// replay does with the same line.
+	if( FStrEq( pcmd, "diag_fire" ) && CMD_ARGC() > 1 )
+	{
+		CBaseEntity *player = CBaseEntity::Instance( pEntity );
+		FireTargets( CMD_ARGV( 1 ), player, player, USE_TOGGLE, 0 );
+		return;
+	}
+
 	if( FStrEq( pcmd, "say" ) )
 	{
 		Host_Say( pEntity, 0 );
