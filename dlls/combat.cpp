@@ -30,6 +30,7 @@
 #include "weapons.h"
 #include "func_break.h"
 #include "game.h"
+#include "diag.h"
 
 extern DLL_GLOBAL Vector		g_vecAttackDir;
 extern DLL_GLOBAL int			g_iSkillLevel;
@@ -1010,6 +1011,7 @@ void RadiusDamage( Vector vecSrc, entvars_t *pevInflictor, entvars_t *pevAttacke
 	else
 		falloff = 1.0f;
 
+	Diag_RadiusDamage( vecSrc, pevInflictor, flDamage, flRadius, bitsDamageType );
 	int bInWater = ( UTIL_PointContents( vecSrc ) == CONTENTS_WATER );
 
 	vecSrc.z += 1.0f;// in case grenade is lying on the ground
@@ -1494,6 +1496,7 @@ Vector CBaseEntity::FireBulletsPlayer( ULONG cShots, Vector vecSrc, Vector vecDi
 
 		vecEnd = vecSrc + vecDir * flDistance;
 		UTIL_TraceLine( vecSrc, vecEnd, dont_ignore_monsters, ENT( pev )/*pentIgnore*/, &tr );
+		Diag_Shot( vecSrc, vecDirShooting, x, y, vecSpread, shared_rand, (int)iShot, tr.vecEndPos, tr.flFraction, tr.pHit );
 
 		// do damage, paint decals
 		if( tr.flFraction != 1.0f )

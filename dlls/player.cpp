@@ -36,6 +36,7 @@
 #include "game.h"
 #include "pm_shared.h"
 #include "hltv.h"
+#include "diag.h"
 
 // #define DUCKFIX
 
@@ -435,6 +436,7 @@ int CBasePlayer::TakeDamage( entvars_t *pevInflictor, entvars_t *pevAttacker, fl
 	float flRatio;
 	float flBonus;
 	float flHealthPrev = pev->health;
+	DiagHurtScope diagHurt( pev, pevInflictor, flDamage, bitsDamageType );
 
 	flBonus = ARMOR_BONUS;
 	flRatio = ARMOR_RATIO;

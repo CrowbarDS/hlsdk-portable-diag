@@ -6,6 +6,8 @@
 #include "usercmd.h"
 #include "diag.h"
 #include "pm_shared.h"
+#include "weapons.h"
+#include "hornet.h"
 
 #include <stdio.h>
 
@@ -56,6 +58,27 @@ static void Open( void )
 	fprintf( s_log, "#cols lad frame seq t id hit frac nx ny nz onfloor fwd right\n" );
 	// A console command the server ran (a scenario's "cmd" line), as it ran.
 	fprintf( s_log, "#cols ccmd frame seq t text\n" );
+	// The weapon in hand after the player's think: its class, clip, the ammo
+	// carried (its first and second kinds), the times until it may fire
+	// again and idle (as the game keeps them: from 0 with its own client's
+	// weapons), and a reload under way.
+	fprintf( s_log, "#cols wpn frame seq t cls clip ammo1 ammo2 next1 next2 idle reload\n" );
+	// What the player has thrown or fired, before the frame's physics moves
+	// it (as the boxes): id its entity, cls its class, sub how it goes
+	// (a grenade: timed, contact or slide; a hornet: track or dart), mt its
+	// movetype, og on the ground.
+	fprintf( s_log, "#cols proj frame seq t id cls sub ox oy oz vx vy vz mt og water\n" );
+	// One bullet: n which of the shot's, src where from, ax..az the way aimed
+	// (before the spread), x y the spread drawn (each the sum of two shared
+	// draws, -1..1), cx cy the weapon's cone (the way goes off by x * cx of
+	// the view's right and y * cy of its up), seed the command's, ex..ez
+	// where its trace ended, frac how far, hit what it hit.
+	fprintf( s_log, "#cols shot frame seq t n seed sx sy sz ax ay az x y cx cy ex ey ez frac hit\n" );
+	// A blast (RadiusDamage), at x y z as given.
+	fprintf( s_log, "#cols boom frame seq t x y z damage radius type by\n" );
+	// The player hurt: amount and type asked, by what from where, the
+	// velocity before and after (the push), health and armour before and after.
+	fprintf( s_log, "#cols dmg frame seq t amount type by fx fy fz vx0 vy0 vz0 vx vy vz hp0 hp ap0 ap\n" );
 	s_seq = 0;
 	g_engfuncs.pfnServerPrint( "DIAG: log open\n" );
 }
@@ -126,6 +149,16 @@ void Diag_PlayerPostThink( CBasePlayer *player )
 			s_frame, s_seq, gpGlobals->time, ladder, pm_diag_ladder.hit, pm_diag_ladder.frac,
 			pm_diag_ladder.normal[0], pm_diag_ladder.normal[1], pm_diag_ladder.normal[2],
 			pm_diag_ladder.onfloor, pm_diag_ladder.fwd, pm_diag_ladder.right );
+	CBasePlayerWeapon *weapon = player->m_pActiveItem ? (CBasePlayerWeapon *)player->m_pActiveItem->GetWeaponPtr() : NULL;
+	if( weapon )
+	{
+		int ammo1 = weapon->m_iPrimaryAmmoType >= 0 ? player->m_rgAmmo[weapon->m_iPrimaryAmmoType] : -1;
+		int ammo2 = weapon->m_iSecondaryAmmoType >= 0 ? player->m_rgAmmo[weapon->m_iSecondaryAmmoType] : -1;
+		fprintf( s_log, "wpn,%d,%d,%.4f,%s,%d,%d,%d,%.4f,%.4f,%.4f,%d\n",
+			s_frame, s_seq, gpGlobals->time, STRING( weapon->pev->classname ), weapon->m_iClip, ammo1, ammo2,
+			weapon->m_flNextPrimaryAttack, weapon->m_flNextSecondaryAttack, weapon->m_flTimeWeaponIdle,
+			weapon->m_fInReload );
+	}
 }
 
 void Diag_ClientCommand( const char *cmd, const char *args )
@@ -164,6 +197,77 @@ void Diag_StartFrame( void )
 			( pev->flags & FL_ONGROUND ) ? ModelName( pev->groundentity ) : "-",
 			pev->waterlevel );
 	}
+	static const char *thrown[] = { "grenade", "crossbow_bolt", "rpg_rocket", "hornet", "monster_satchel",
+		"monster_snark", "monster_tripmine" };
+	for( unsigned k = 0; k < sizeof( thrown ) / sizeof( thrown[0] ); k++ )
+	{
+		ent = NULL;
+		while(( ent = UTIL_FindEntityByClassname( ent, thrown[k] )) != NULL )
+		{
+			entvars_t *pev = ent->pev;
+			if( pev->flags & FL_KILLME )
+				continue;
+			const char *sub = "-";
+			typedef void ( CBaseEntity::*Touch )( CBaseEntity * );
+			typedef void ( CBaseEntity::*Think )( void );
+			if( k == 0 )
+			{
+				if( ent->m_pfnTouch == static_cast<Touch>( &CGrenade::ExplodeTouch ))
+					sub = "contact";
+				else if( ent->m_pfnTouch == static_cast<Touch>( &CGrenade::BounceTouch ))
+					sub = "timed";
+				else if( ent->m_pfnTouch == static_cast<Touch>( &CGrenade::SlideTouch ))
+					sub = "slide";
+			}
+			else if( k == 3 )
+			{
+				const bool dart = ent->m_pfnThink == static_cast<Think>( &CHornet::StartDart ) ||
+					ent->m_pfnTouch == static_cast<Touch>( &CHornet::DartTouch );
+				sub = dart ? "dart" : "track";
+			}
+			fprintf( s_log, "proj,%d,%d,%.4f,%d,%s,%s,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%d,%d,%d\n",
+				s_frame, s_seq, gpGlobals->time, ENTINDEX( ent->edict()), thrown[k], sub,
+				pev->origin.x, pev->origin.y, pev->origin.z, pev->velocity.x, pev->velocity.y, pev->velocity.z,
+				pev->movetype, ( pev->flags & FL_ONGROUND ) ? 1 : 0, pev->waterlevel );
+		}
+	}
+}
+
+void Diag_Shot( const Vector &src, const Vector &aim, float x, float y, const Vector &spread, int seed, int n,
+	const Vector &end, float frac, edict_t *hit )
+{
+	if( !Diag_On())
+		return;
+	fprintf( s_log, "shot,%d,%d,%.4f,%d,%d,%.3f,%.3f,%.3f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.3f,%.3f,%.3f,%.5f,%s\n",
+		s_frame, s_seq, gpGlobals->time, n, seed, src.x, src.y, src.z, aim.x, aim.y, aim.z, x, y, spread.x, spread.y,
+		end.x, end.y, end.z, frac, frac < 1.0f ? ModelName( hit ) : "-" );
+}
+
+void Diag_RadiusDamage( const Vector &src, entvars_t *inflictor, float damage, float radius, int type )
+{
+	if( !Diag_On())
+		return;
+	fprintf( s_log, "boom,%d,%d,%.4f,%.3f,%.3f,%.3f,%.2f,%.2f,%d,%s\n",
+		s_frame, s_seq, gpGlobals->time, src.x, src.y, src.z, damage, radius, type,
+		inflictor ? STRING( inflictor->classname ) : "-" );
+}
+
+DiagHurtScope::DiagHurtScope( entvars_t *p, entvars_t *i, float a, int t )
+	: player( p ), inflictor( i ), amount( a ), type( t ), velocity( p->velocity ), health( p->health ),
+	  armor( p->armorvalue )
+{
+}
+
+DiagHurtScope::~DiagHurtScope()
+{
+	if( !Diag_On())
+		return;
+	Vector from = inflictor ? inflictor->origin : Vector( 0, 0, 0 );
+	fprintf( s_log, "dmg,%d,%d,%.4f,%.2f,%d,%s,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f,%.2f,%.2f,%.2f\n",
+		s_frame, s_seq, gpGlobals->time, amount, type, inflictor ? STRING( inflictor->classname ) : "-",
+		from.x, from.y, from.z, velocity.x, velocity.y, velocity.z,
+		player->velocity.x, player->velocity.y, player->velocity.z, health, player->health, armor,
+		player->armorvalue );
 }
 
 DiagPushScope::DiagPushScope( entvars_t *b, entvars_t *t, int p )
