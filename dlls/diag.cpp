@@ -109,7 +109,7 @@ static void Open( void )
 	// Something its AI did: sched (name; a the conditions that ended the
 	// last), task (a its id), fail (a the task's id), anim (a the event),
 	// route/cover/near (a the route's first step's type, b the goal; name
-	// "x y z" that step).
+	// "x y z>x y z" that step, and the route's goal).
 	fprintf( s_log, "#cols aiev frame seq t id what name a b\n" );
 	// A random draw of the engine's while a monster thought: L whole, F float.
 	fprintf( s_log, "#cols rnd frame seq t id kind lo hi value\n" );
@@ -425,7 +425,16 @@ DiagRouteScope::~DiagRouteScope()
 	if( !Diag_On())
 		return;
 	const WayPoint_t &step = monster->m_Route[monster->m_iRouteIndex];
-	char at[64];
-	snprintf( at, sizeof( at ), "%.1f %.1f %.1f", step.vecLocation.x, step.vecLocation.y, step.vecLocation.z );
+	// (Its first step, and the one it is all for: the route's goal.)
+	const WayPoint_t *goal = &step;
+	for( int i = monster->m_iRouteIndex; i < ROUTE_SIZE; i++ )
+	{
+		goal = &monster->m_Route[i];
+		if( goal->iType & bits_MF_IS_GOAL )
+			break;
+	}
+	char at[128];
+	snprintf( at, sizeof( at ), "%.1f %.1f %.1f>%.1f %.1f %.1f", step.vecLocation.x, step.vecLocation.y,
+		step.vecLocation.z, goal->vecLocation.x, goal->vecLocation.y, goal->vecLocation.z );
 	Diag_AiEvent( monster, what, at, step.iType, monster->m_movementGoal );
 }
