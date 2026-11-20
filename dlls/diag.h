@@ -20,6 +20,7 @@ bool Diag_On( void );
 void Diag_CmdStart( CBasePlayer *player, const struct usercmd_s *cmd, unsigned int seed );
 void Diag_PlayerPostThink( CBasePlayer *player );
 void Diag_StartFrame( void );
+void Diag_ClientCommand( const char *cmd, const char *args );
 
 // One CPushable::Move: what it did with the toucher (see the result names in
 // diag.cpp), the box's velocity before and after.

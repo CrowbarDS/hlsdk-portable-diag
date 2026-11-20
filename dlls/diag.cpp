@@ -5,6 +5,7 @@
 #include "player.h"
 #include "usercmd.h"
 #include "diag.h"
+#include "pm_shared.h"
 
 #include <stdio.h>
 
@@ -43,10 +44,18 @@ static void Open( void )
 	// frame: the script's frame (the client's); seq: the command, from 1 (a
 	// slow frame is run as more than one command); t: the server's time.
 	fprintf( s_log, "#cols cmd frame seq t sframe msec fwd side up pitch yaw buttons impulse seed\n" );
-	fprintf( s_log, "#cols pl frame seq t ox oy oz vx vy vz pitch yaw punchp punchy og duck ground water\n" );
+	// mt: the movetype (3 walk, 5 fly: on a ladder); lad: the ladder's model,
+	// or "-".
+	fprintf( s_log, "#cols pl frame seq t ox oy oz vx vy vz pitch yaw punchp punchy og duck ground water mt lad\n" );
 	fprintf( s_log, "#cols phys frame seq t sframe ft\n" );
 	fprintf( s_log, "#cols box frame seq t id cx cy cz vx vy vz og ground water\n" );
 	fprintf( s_log, "#cols touch frame seq t id who push result tvx tvy bvx0 bvy0 bvx bvy\n" );
+	// The ladder the move was on (pm_shared.c's pm_diag_ladder): hit, its
+	// trace found it; frac, nx..nz, what that trace found; fwd/right, the
+	// climb speeds asked for.
+	fprintf( s_log, "#cols lad frame seq t id hit frac nx ny nz onfloor fwd right\n" );
+	// A console command the server ran (a scenario's "cmd" line), as it ran.
+	fprintf( s_log, "#cols ccmd frame seq t text\n" );
 	s_seq = 0;
 	g_engfuncs.pfnServerPrint( "DIAG: log open\n" );
 }
@@ -101,14 +110,37 @@ void Diag_PlayerPostThink( CBasePlayer *player )
 	if( !Diag_On())
 		return;
 	entvars_t *pev = player->pev;
-	fprintf( s_log, "pl,%d,%d,%.4f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.4f,%.4f,%.4f,%.4f,%d,%d,%s,%d\n",
+	const char *ladder = "-";
+	if( pm_diag_ladder.on )
+		ladder = ModelName( INDEXENT( pm_diag_ladder.ent ));
+	fprintf( s_log, "pl,%d,%d,%.4f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.4f,%.4f,%.4f,%.4f,%d,%d,%s,%d,%d,%s\n",
 		s_frame, s_seq, gpGlobals->time,
 		pev->origin.x, pev->origin.y, pev->origin.z,
 		pev->velocity.x, pev->velocity.y, pev->velocity.z,
 		pev->v_angle.x, pev->v_angle.y, pev->punchangle.x, pev->punchangle.y,
 		( pev->flags & FL_ONGROUND ) ? 1 : 0, ( pev->flags & FL_DUCKING ) ? 1 : 0,
 		( pev->flags & FL_ONGROUND ) ? ModelName( pev->groundentity ) : "-",
-		pev->waterlevel );
+		pev->waterlevel, pev->movetype, ladder );
+	if( pm_diag_ladder.on )
+		fprintf( s_log, "lad,%d,%d,%.4f,%s,%d,%.4f,%.4f,%.4f,%.4f,%d,%.1f,%.1f\n",
+			s_frame, s_seq, gpGlobals->time, ladder, pm_diag_ladder.hit, pm_diag_ladder.frac,
+			pm_diag_ladder.normal[0], pm_diag_ladder.normal[1], pm_diag_ladder.normal[2],
+			pm_diag_ladder.onfloor, pm_diag_ladder.fwd, pm_diag_ladder.right );
+}
+
+void Diag_ClientCommand( const char *cmd, const char *args )
+{
+	if( !Diag_On())
+		return;
+	// (No commas in the row: they would be columns.)
+	char text[160];
+	snprintf( text, sizeof( text ), "%s %s", cmd, args ? args : "" );
+	for( char *c = text; *c; ++c )
+	{
+		if( *c == ',' || *c == '\n' || *c == '\r' )
+			*c = ' ';
+	}
+	fprintf( s_log, "ccmd,%d,%d,%.4f,%s\n", s_frame, s_seq, gpGlobals->time, text );
 }
 
 // Before the frame's physics: the boxes as the last frame's physics left them,

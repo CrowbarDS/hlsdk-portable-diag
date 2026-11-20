@@ -2152,6 +2152,8 @@ void PM_Duck( void )
 	}
 }
 
+pm_diag_ladder_t pm_diag_ladder;
+
 void PM_LadderMove( physent_t *pLadder )
 {
 	vec3_t ladderCenter;
@@ -2181,6 +2183,16 @@ void PM_LadderMove( physent_t *pLadder )
 
 	pmove->gravity = 0;
 	PM_TraceModel(pLadder, pmove->origin, ladderCenter, &trace);
+	if( pmove->server )
+	{
+		pm_diag_ladder.on = 1;
+		pm_diag_ladder.ent = pLadder->info;
+		pm_diag_ladder.onfloor = onFloor ? 1 : 0;
+		pm_diag_ladder.frac = trace.fraction;
+		pm_diag_ladder.hit = trace.fraction != 1.0f;
+		VectorCopy( trace.plane.normal, pm_diag_ladder.normal );
+		pm_diag_ladder.fwd = pm_diag_ladder.right = 0;
+	}
 	if( trace.fraction != 1.0f )
 	{
 		float forward = 0, right = 0;
@@ -2203,6 +2215,11 @@ void PM_LadderMove( physent_t *pLadder )
 			right -= flSpeed;
 		if( pmove->cmd.buttons & IN_MOVERIGHT )
 			right += flSpeed;
+		if( pmove->server )
+		{
+			pm_diag_ladder.fwd = forward;
+			pm_diag_ladder.right = right;
+		}
 
 		if( pmove->cmd.buttons & IN_JUMP )
 		{
@@ -3019,6 +3036,8 @@ void PM_PlayerMove( qboolean server )
 
 	// Are we running server code?
 	pmove->server = server;                
+	if( server )
+		pm_diag_ladder.on = 0;
 
 	// Adjust speeds etc.
 	PM_CheckParamters();

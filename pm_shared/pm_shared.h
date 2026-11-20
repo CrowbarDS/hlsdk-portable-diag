@@ -21,6 +21,22 @@ void PM_Init( struct playermove_s *ppmove );
 void PM_Move( struct playermove_s *ppmove, int server );
 char PM_FindTextureType( char *name );
 
+// DIAG: what the server's last player move made of a ladder (dlls/diag.cpp
+// logs it; the client's prediction does not fill it). on: a ladder was
+// touched this move; hit: its trace from the origin to its centre found it
+// (the move went by it), with the normal and fraction found; onfloor: solid
+// under the feet; fwd/right: the climb speeds the buttons asked for.
+typedef struct pm_diag_ladder_s
+{
+	int on, ent, hit, onfloor;
+	float frac, normal[3], fwd, right;
+} pm_diag_ladder_t;
+#ifdef __cplusplus
+extern "C" pm_diag_ladder_t pm_diag_ladder;
+#else
+extern pm_diag_ladder_t pm_diag_ladder;
+#endif
+
 // Spectator Movement modes (stored in pev->iuser1, so the physics code can get at them)
 #define OBS_NONE			0
 #define OBS_CHASE_LOCKED		1

@@ -476,6 +476,8 @@ void ClientCommand( edict_t *pEntity )
 	if( !pEntity->pvPrivateData )
 		return;
 
+	Diag_ClientCommand( pcmd, CMD_ARGS());
+
 	entvars_t *pev = &pEntity->v;
 
 	if( FStrEq( pcmd, "say" ) )
