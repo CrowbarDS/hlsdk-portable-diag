@@ -113,7 +113,9 @@ static void Open( void )
 	// Something its AI did: sched (name; a the conditions that ended the
 	// last), task (a its id), fail (a the task's id), anim (a the event),
 	// route/cover/near (a the route's first step's type, b the goal; name
-	// "x y z>x y z" that step, and the route's goal).
+	// "x y z>x y z" that step, and the route's goal), look (Move's look ahead
+	// refused: a LOCALMOVE_*, b how far it got; name "x y z>z>x y z" where it
+	// looked to, the height its walk reached there, the waypoint).
 	fprintf( s_log, "#cols aiev frame seq t id what name a b\n" );
 	// A random draw of the engine's while a monster thought: L whole, F float.
 	fprintf( s_log, "#cols rnd frame seq t id kind lo hi value\n" );
@@ -404,6 +406,17 @@ void Diag_MonsterThink( CBaseMonster *monster )
 		pev->angles.y, monster->m_MonsterState, monster->m_IdealMonsterState, sched ? sched->pName : "-",
 		monster->m_iScheduleIndex, task ? task->iTask : -1, monster->m_afConditions,
 		enemy ? ENTINDEX( enemy->edict()) : -1, monster->m_Activity, pev->sequence, pev->health, pev->nextthink );
+}
+
+void Diag_LookAhead( CBaseMonster *monster, const Vector &end, float reachedZ, const Vector &waypoint, int result,
+	float dist )
+{
+	if( !Diag_On())
+		return;
+	char at[160];
+	snprintf( at, sizeof( at ), "%.1f %.1f %.1f>%.1f>%.1f %.1f %.1f", end.x, end.y, end.z, reachedZ, waypoint.x,
+		waypoint.y, waypoint.z );
+	Diag_AiEvent( monster, "look", at, result, (int)dist );
 }
 
 void Diag_AiEvent( CBaseMonster *monster, const char *what, const char *name, int a, int b )

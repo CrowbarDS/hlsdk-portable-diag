@@ -1291,6 +1291,9 @@ void CBaseMonster::SetSequenceByName( const char *szSequence )
 // DON"T USE SETORIGIN! 
 //=========================================================
 #define	LOCAL_STEP_SIZE	16
+// The height CheckLocalMove's walk last got to (Diag_LookAhead).
+static float s_diagReachedZ;
+
 int CBaseMonster::CheckLocalMove( const Vector &vecStart, const Vector &vecEnd, CBaseEntity *pTarget, float *pflDist )
 {
 	Vector vecStartPos;// record monster's position before trying the move
@@ -1385,6 +1388,9 @@ int CBaseMonster::CheckLocalMove( const Vector &vecStart, const Vector &vecEnd, 
 	WRITE_COORD( MSG_BROADCAST, vecStart.y );
 	WRITE_COORD( MSG_BROADCAST, vecStart.z );
 	*/
+
+	// (Where its walk got to, for the diagnostic log: Move's look ahead.)
+	s_diagReachedZ = pev->origin.z;
 
 	// since we've actually moved the monster during the check, undo the move.
 	UTIL_SetOrigin( pev, vecStartPos );
@@ -1855,9 +1861,13 @@ void CBaseMonster::Move( float flInterval )
 	// If this fails, it should be because of some dynamic entity blocking this guy.
 	// We've already checked this path, so we should wait and time out if the entity doesn't move
 	flDist = 0;
-	if( CheckLocalMove( pev->origin, pev->origin + vecDir * flCheckDist, pTargetEnt, &flDist ) != LOCALMOVE_VALID )
+	const int iLook = CheckLocalMove( pev->origin, pev->origin + vecDir * flCheckDist, pTargetEnt, &flDist );
+	if( iLook != LOCALMOVE_VALID )
 	{
 		CBaseEntity *pBlocker;
+
+		Diag_LookAhead( this, pev->origin + vecDir * flCheckDist, s_diagReachedZ, m_Route[m_iRouteIndex].vecLocation,
+			iLook, flDist );
 
 		// Can't move, stop
 		Stop();

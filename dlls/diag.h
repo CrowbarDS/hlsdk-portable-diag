@@ -74,6 +74,11 @@ void Diag_MonsterThink( CBaseMonster *monster );
 // Something its AI did ("aiev"): what (sched, task, fail, anim), a name
 // (the schedule's) and two numbers (a task's id, a condition mask, an event).
 void Diag_AiEvent( CBaseMonster *monster, const char *what, const char *name, int a, int b );
+// Move's look ahead refused (CheckLocalMove): where it looked to, the height
+// its walk got to there, the waypoint, the result (LOCALMOVE_*) and how far it
+// got.
+void Diag_LookAhead( CBaseMonster *monster, const Vector &end, float reachedZ, const Vector &waypoint, int result,
+	float dist );
 // While a monster thinks or starts, the engine's random draws are its own
 // ("rnd"): which monster, low, high and what came.
 struct DiagMonsterScope
