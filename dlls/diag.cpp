@@ -9,6 +9,7 @@
 #include "weapons.h"
 #include "hornet.h"
 #include "monsters.h"
+#include "decals.h"
 
 #include <stdio.h>
 
@@ -96,6 +97,10 @@ static void Open( void )
 	fprintf( s_log, "#cols shot frame seq t n seed sx sy sz ax ay az x y cx cy ex ey ez frac hit\n" );
 	// A blast (RadiusDamage), at x y z as given.
 	fprintf( s_log, "#cols boom frame seq t x y z damage radius type by\n" );
+	// A mark (a decal the server sends): where its trace ended, the wall's
+	// normal, its family (the decal's name without its "{" and number:
+	// blood, yblood, shot, bigshot, scorch, ...), its name, and what it is on.
+	fprintf( s_log, "#cols decal frame seq t x y z nx ny nz family name on\n" );
 	// A turning brush (func_rotating), before the frame's physics: its
 	// angles and how fast each turns (degrees, degrees a second).
 	fprintf( s_log, "#cols rot frame seq t id ax ay az wx wy wz\n" );
@@ -333,6 +338,25 @@ void Diag_RadiusDamage( const Vector &src, entvars_t *inflictor, float damage, f
 	fprintf( s_log, "boom,%d,%d,%.4f,%.3f,%.3f,%.3f,%.2f,%.2f,%d,%s\n",
 		s_frame, s_seq, gpGlobals->time, src.x, src.y, src.z, damage, radius, type,
 		inflictor ? STRING( inflictor->classname ) : "-" );
+}
+
+void Diag_Decal( const TraceResult *trace, int decalNumber )
+{
+	if( !Diag_On() || decalNumber < 0 )
+		return;
+	const char *name = gDecals[decalNumber].name;
+	char family[32];
+	int n = 0;
+	for( const char *c = name; *c && n < (int)sizeof( family ) - 1; ++c )
+	{
+		if( *c != '{' && ( *c < '0' || *c > '9' ))
+			family[n++] = *c;
+	}
+	family[n] = 0;
+	fprintf( s_log, "decal,%d,%d,%.4f,%.3f,%.3f,%.3f,%.4f,%.4f,%.4f,%s,%s,%s\n",
+		s_frame, s_seq, gpGlobals->time, trace->vecEndPos.x, trace->vecEndPos.y, trace->vecEndPos.z,
+		trace->vecPlaneNormal.x, trace->vecPlaneNormal.y, trace->vecPlaneNormal.z, family, name,
+		ModelName( trace->pHit ));
 }
 
 DiagHurtScope::DiagHurtScope( entvars_t *p, entvars_t *i, float a, int t )

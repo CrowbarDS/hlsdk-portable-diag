@@ -31,6 +31,7 @@
 #include "weapons.h"
 #include "gamerules.h"
 #include "byteswap.h"
+#include "diag.h"
 
 float UTIL_WeaponTimeBase( void )
 {
@@ -1192,6 +1193,8 @@ void UTIL_DecalTrace( TraceResult *pTrace, int decalNumber )
 	else
 		entityIndex = 0;
 
+	Diag_Decal( pTrace, decalNumber );
+
 	message = TE_DECAL;
 	if( entityIndex != 0 )
 	{
@@ -1272,6 +1275,8 @@ void UTIL_GunshotDecalTrace( TraceResult *pTrace, int decalNumber )
 
 	if( pTrace->flFraction == 1.0f )
 		return;
+
+	Diag_Decal( pTrace, decalNumber );
 
 	MESSAGE_BEGIN( MSG_PAS, SVC_TEMPENTITY, pTrace->vecEndPos );
 		WRITE_BYTE( TE_GUNSHOTDECAL );

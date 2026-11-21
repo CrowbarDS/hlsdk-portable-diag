@@ -29,6 +29,9 @@ void Diag_Shot( const Vector &src, const Vector &aim, float x, float y, const Ve
 	const Vector &end, float frac, edict_t *hit );
 // A RadiusDamage: where (as given, before its own z + 1), how much, how far.
 void Diag_RadiusDamage( const Vector &src, entvars_t *inflictor, float damage, float radius, int type );
+// A mark sent to the clients (UTIL_DecalTrace, UTIL_GunshotDecalTrace): where
+// its trace ended, the wall's normal there, which decal (gDecals) and on what.
+void Diag_Decal( const TraceResult *trace, int decalNumber );
 
 // One CBasePlayer::TakeDamage: what was asked, and the player before and after
 // (the push is CBaseMonster::TakeDamage's).
