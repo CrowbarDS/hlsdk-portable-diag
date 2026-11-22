@@ -68,8 +68,15 @@ static void Open( void )
 	// slow frame is run as more than one command); t: the server's time.
 	fprintf( s_log, "#cols cmd frame seq t sframe msec fwd side up pitch yaw buttons impulse seed\n" );
 	// mt: the movetype (3 walk, 5 fly: on a ladder); lad: the ladder's model,
-	// or "-".
-	fprintf( s_log, "#cols pl frame seq t ox oy oz vx vy vz pitch yaw punchp punchy og duck ground water mt lad\n" );
+	// or "-"; lamp: the flashlight on (EF_DIMLIGHT); bat: its battery.
+	fprintf( s_log, "#cols pl frame seq t ox oy oz vx vy vz pitch yaw punchp punchy og duck ground water mt lad lamp bat\n" );
+	// The flashlight, while it is on: where the client's light would be
+	// (CL_UpdateFlashlight: a line of 2000 from the eye along the view; the
+	// light at its end, or at the origin of a model it stops on). Traced
+	// here on the server, so a monster is met as its box, not its hit
+	// boxes. dist: how far the line went; hit: what stopped it; lx..lz:
+	// where the light sits.
+	fprintf( s_log, "#cols lamp frame seq t ex ey ez dist hit lx ly lz\n" );
 	fprintf( s_log, "#cols phys frame seq t sframe ft\n" );
 	fprintf( s_log, "#cols box frame seq t id cx cy cz vx vy vz og ground water\n" );
 	fprintf( s_log, "#cols touch frame seq t id who push result tvx tvy bvx0 bvy0 bvx bvy\n" );
@@ -216,14 +223,28 @@ void Diag_PlayerPostThink( CBasePlayer *player )
 	const char *ladder = "-";
 	if( pm_diag_ladder.on )
 		ladder = ModelName( INDEXENT( pm_diag_ladder.ent ));
-	fprintf( s_log, "pl,%d,%d,%.4f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.4f,%.4f,%.4f,%.4f,%d,%d,%s,%d,%d,%s\n",
+	fprintf( s_log, "pl,%d,%d,%.4f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.4f,%.4f,%.4f,%.4f,%d,%d,%s,%d,%d,%s,%d,%d\n",
 		s_frame, s_seq, gpGlobals->time,
 		pev->origin.x, pev->origin.y, pev->origin.z,
 		pev->velocity.x, pev->velocity.y, pev->velocity.z,
 		pev->v_angle.x, pev->v_angle.y, pev->punchangle.x, pev->punchangle.y,
 		( pev->flags & FL_ONGROUND ) ? 1 : 0, ( pev->flags & FL_DUCKING ) ? 1 : 0,
 		( pev->flags & FL_ONGROUND ) ? ModelName( pev->groundentity ) : "-",
-		pev->waterlevel, pev->movetype, ladder );
+		pev->waterlevel, pev->movetype, ladder, ( pev->effects & EF_DIMLIGHT ) ? 1 : 0, player->m_iFlashBattery );
+	if( pev->effects & EF_DIMLIGHT )
+	{
+		UTIL_MakeVectors( pev->v_angle );
+		const Vector eye = pev->origin + pev->view_ofs;
+		TraceResult tr;
+		UTIL_TraceLine( eye, eye + gpGlobals->v_forward * 2000.0f, dont_ignore_monsters, player->edict(), &tr );
+		Vector light = tr.vecEndPos;
+		CBaseEntity *hit = tr.flFraction < 1.0f && tr.pHit ? CBaseEntity::Instance( tr.pHit ) : NULL;
+		if( hit && hit->pev->modelindex && hit->MyMonsterPointer())
+			light = hit->pev->origin;
+		fprintf( s_log, "lamp,%d,%d,%.4f,%.3f,%.3f,%.3f,%.3f,%s,%.3f,%.3f,%.3f\n", s_frame, s_seq, gpGlobals->time,
+			tr.vecEndPos.x, tr.vecEndPos.y, tr.vecEndPos.z, tr.flFraction * 2000.0f,
+			tr.flFraction < 1.0f ? ModelName( tr.pHit ) : "-", light.x, light.y, light.z );
+	}
 	if( pm_diag_ladder.on )
 		fprintf( s_log, "lad,%d,%d,%.4f,%s,%d,%.4f,%.4f,%.4f,%.4f,%d,%.1f,%.1f\n",
 			s_frame, s_seq, gpGlobals->time, ladder, pm_diag_ladder.hit, pm_diag_ladder.frac,
