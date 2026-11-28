@@ -129,6 +129,7 @@ static void Open( void )
 	// refused: a LOCALMOVE_*, b how far it got; name "x y z>z>x y z" where it
 	// looked to, the height its walk reached there, the waypoint).
 	fprintf( s_log, "#cols aiev frame seq t id what name a b\n" );
+	fprintf( s_log, "#cols say frame seq t id cls name\n" );
 	// A random draw of the engine's while a monster thought: L whole, F float.
 	fprintf( s_log, "#cols rnd frame seq t id kind lo hi value\n" );
 	for( int i = 0; i < s_startCount; i++ )
@@ -462,6 +463,17 @@ void Diag_LookAhead( CBaseMonster *monster, const Vector &end, float reachedZ, c
 	snprintf( at, sizeof( at ), "%.1f %.1f %.1f>%.1f>%.1f %.1f %.1f", end.x, end.y, end.z, reachedZ, waypoint.x,
 		waypoint.y, waypoint.z );
 	Diag_AiEvent( monster, "look", at, result, (int)dist );
+}
+
+void Diag_Say( edict_t *entity, const char *sample )
+{
+	if( !Diag_On() || !sample || sample[0] != '!' )
+		return;
+	// (A monster's line is its own; anything else's -- a button's lock line,
+	// a speaker's, the suit's -- nobody's, as the port has them.)
+	const bool monster = entity && ( entity->v.flags & FL_MONSTER );
+	fprintf( s_log, "say,%d,%d,%.4f,%d,%s,%s\n", s_frame, s_seq, gpGlobals->time, monster ? ENTINDEX( entity ) : -1,
+		monster ? STRING( entity->v.classname ) : "-", sample + 1 );
 }
 
 void Diag_AiEvent( CBaseMonster *monster, const char *what, const char *name, int a, int b )

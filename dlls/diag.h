@@ -77,6 +77,9 @@ void Diag_MonsterThink( CBaseMonster *monster );
 // Something its AI did ("aiev"): what (sched, task, fail, anim), a name
 // (the schedule's) and two numbers (a task's id, a condition mask, an event).
 void Diag_AiEvent( CBaseMonster *monster, const char *what, const char *name, int a, int b );
+// A spoken line ("!NAME"), as EMIT_SOUND_DYN is asked for it: who says it (a
+// monster, or nobody's: a button's, a speaker's, the suit) and which.
+void Diag_Say( edict_t *entity, const char *sample );
 // Move's look ahead refused (CheckLocalMove): where it looked to, the height
 // its walk got to there, the waypoint, the result (LOCALMOVE_*) and how far it
 // got.

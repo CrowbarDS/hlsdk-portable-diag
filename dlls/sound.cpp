@@ -23,6 +23,7 @@
 #include "player.h"
 #include "talkmonster.h"
 #include "gamerules.h"
+#include "diag.h"
 
 extern "C" char *PM_memfgets( byte *pMemFile, int fileSize, int *pFilePos, char *pBuffer, int bufferSize );
 
@@ -1388,6 +1389,7 @@ void EMIT_SOUND_DYN( edict_t *entity, int channel, const char *sample, float vol
 {
 	if( sample && *sample == '!' )
 	{
+		Diag_Say( entity, sample );
 		char name[32];
 		if( SENTENCEG_Lookup( sample, name ) >= 0 )
 			EMIT_SOUND_DYN2( entity, channel, name, volume, attenuation, flags, pitch );
