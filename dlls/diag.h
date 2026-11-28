@@ -80,6 +80,10 @@ void Diag_AiEvent( CBaseMonster *monster, const char *what, const char *name, in
 // A spoken line ("!NAME"), as EMIT_SOUND_DYN is asked for it: who says it (a
 // monster, or nobody's: a button's, a speaker's, the suit) and which.
 void Diag_Say( edict_t *entity, const char *sample );
+// A route's straight walk refused (BuildRoute's CheckLocalMove): from where,
+// how far it got, what stopped it (trace_ent: an entity, or the world).
+void Diag_RouteBlocked( CBaseMonster *monster, const Vector &start, const Vector &goal, float got, edict_t *blocker,
+	int result );
 // Move's look ahead refused (CheckLocalMove): where it looked to, the height
 // its walk got to there, the waypoint, the result (LOCALMOVE_*) and how far it
 // got.

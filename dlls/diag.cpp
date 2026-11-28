@@ -465,6 +465,23 @@ void Diag_LookAhead( CBaseMonster *monster, const Vector &end, float reachedZ, c
 	Diag_AiEvent( monster, "look", at, result, (int)dist );
 }
 
+void Diag_RouteBlocked( CBaseMonster *monster, const Vector &start, const Vector &goal, float got, edict_t *blocker,
+	int result )
+{
+	if( !Diag_On())
+		return;
+	// (Where the walk stopped: as far along the way as it got.)
+	Vector way = goal - start;
+	way.z = 0;
+	const float length = way.Length();
+	const Vector stop = length > 0 ? start + way * ( got / length ) : start;
+	const bool entity = blocker && !FNullEnt( blocker ) && ENTINDEX( blocker ) > 0;
+	char at[160];
+	snprintf( at, sizeof( at ), "%.1f %.1f %.1f>%.1f %.1f %.1f %s", start.x, start.y, start.z, stop.x, stop.y, stop.z,
+		entity ? STRING( blocker->v.classname ) : "world" );
+	Diag_AiEvent( monster, "blocked", at, entity ? ENTINDEX( blocker ) : 0, result );
+}
+
 void Diag_Say( edict_t *entity, const char *sample )
 {
 	if( !Diag_On() || !sample || sample[0] != '!' )

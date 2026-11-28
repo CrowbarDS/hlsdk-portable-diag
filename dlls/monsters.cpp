@@ -1543,6 +1543,8 @@ BOOL CBaseMonster::BuildRoute( const Vector &vecGoal, int iMoveFlag, CBaseEntity
 
 	// check simple local move
 	iLocalMove = CheckLocalMove( pev->origin, vecGoal, pTarget, &flDist );
+	if( iLocalMove != LOCALMOVE_VALID )
+		Diag_RouteBlocked( this, pev->origin, vecGoal, flDist, gpGlobals->trace_ent, iLocalMove );
 
 	if( iLocalMove == LOCALMOVE_VALID )
 	{
