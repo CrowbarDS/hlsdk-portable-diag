@@ -499,4 +499,24 @@ DiagRouteScope::~DiagRouteScope()
 	snprintf( at, sizeof( at ), "%.1f %.1f %.1f>%.1f %.1f %.1f", step.vecLocation.x, step.vecLocation.y,
 		step.vecLocation.z, goal->vecLocation.x, goal->vecLocation.y, goal->vecLocation.z );
 	Diag_AiEvent( monster, what, at, step.iType, monster->m_movementGoal );
+	// (... and every step of it, to the goal: "x y z/type" each, ';' between,
+	// for the port's to be held to by place -- a route by the nodes has
+	// bits_MF_TO_NODE in its steps' types.)
+	if( !step.iType )
+		return;
+	char path[512];
+	int used = 0, steps = 0;
+	path[0] = 0;
+	for( int i = monster->m_iRouteIndex; i < ROUTE_SIZE && used < (int)sizeof( path ) - 48; i++ )
+	{
+		const WayPoint_t &w = monster->m_Route[i];
+		if( !w.iType )
+			break;
+		used += snprintf( path + used, sizeof( path ) - used, "%s%.1f %.1f %.1f/%d", steps ? ";" : "",
+			w.vecLocation.x, w.vecLocation.y, w.vecLocation.z, w.iType );
+		steps++;
+		if( w.iType & bits_MF_IS_GOAL )
+			break;
+	}
+	Diag_AiEvent( monster, "path", path, steps, monster->m_movementGoal );
 }
